@@ -181,8 +181,8 @@ Registers a new user, creates canonical `User` and `Contact` records, triggers `
 | `email`        | `string`                    | Optional\* | Valid email format      | User login email. (\*Note: At least one of `email` or `phone_number` must be provided).                                        |
 | `phone_number` | `string`                    | Optional\* | E.164 / National number | Phone number. Full international E.164 string (e.g. `+251911223344`) or national subscriber digits when `country_code` is set. |
 | `country_code` | `string`                    | Optional   | `+` and 1 – 4 digits    | Optional country calling code prefix (e.g. `+251`, `+91`). When provided, `phone_number` is treated as national digits.        |
-| `role`         | `string`                    | Optional   | Valid role name         | Single role to request. Must be in `jwt_self_registerable_roles` configuration for guest callers.                              |
-| `roles`        | `array[string]` \| `string` | Optional   | Valid role names        | List of roles to request. Must be in `jwt_self_registerable_roles`.                                                            |
+| `role`         | `string`                    | Optional   | Valid role name         | Single role to request. Must be a self-registerable role (`OAN Auth Settings`) for guest callers.                              |
+| `roles`        | `array[string]` \| `string` | Optional   | Valid role names        | List of roles to request. Must be self-registerable roles (`OAN Auth Settings`).                                               |
 | `...kwargs`    | `any`                       | Optional   | —                       | Extra arbitrary domain fields passed through to installed app `on_user_registered` hooks.                                      |
 
 #### Request Body Examples
@@ -810,7 +810,6 @@ Aggregates public reference metadata, registration parameters, and domain metada
 | `401 Unauthorized`        | `AUTHENTICATION_ERROR`     | Invalid credentials, expired/replayed refresh token, or invalid/expired password reset code.                            |
 | `403 Forbidden`           | `PERMISSION_ERROR`         | Requesting a role not permitted for public self-registration.                                                           |
 | `403 Forbidden`           | `PASSWORD_CHANGE_REQUIRED` | Correct credentials, but the account holds a temporary password. Send the user to `POST /api/v1/auth/password/initial`. |
-| `403 Forbidden`           | `HTTPS_REQUIRED`           | Request made over plain HTTP when `jwt_enforce_https` is enabled.                                                       |
 | `429 Too Many Requests`   | `RATE_LIMIT_EXCEEDED`      | Exceeded rate limit on forgot-password or OTP verification endpoints.                                                   |
 | `502 Bad Gateway`         | `BAD_GATEWAY`              | An IAM answered a login or logout call with something unusable (wrong `base_url` or `provider_id` on the row).          |
 | `503 Service Unavailable` | `SERVICE_UNAVAILABLE`      | An IAM is unreachable, timed out or answered `5xx`. Do not log the user out.                                            |

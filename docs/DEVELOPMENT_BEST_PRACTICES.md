@@ -194,7 +194,7 @@ When a split is justified:
 │   │   ├── <doctype>.json
 │   │   ├── <doctype>.py
 │   │   └── test_<doctype>.py
-│   ├── config/settings.py       # site_config readers (see §7)
+│   ├── config/settings.py       # settings readers (see §7)
 │   ├── setup/install.py         # after_install / after_migrate seeding
 │   ├── patches/                 # one module per patch
 │   ├── tests/                   # integration and API tests + fixtures.py
@@ -569,9 +569,26 @@ Always escape values in SQL fragments with `frappe.db.escape`.
 
 ## 7. Configuration
 
-- Read tunables from `site_config.json` through functions in `config/settings.py`, never
-  through module constants. A function re-reads `frappe.conf`; a constant pins the value
-  until the worker restarts.
+- Read tunables through functions in `config/settings.py`, never through module constants.
+  A function re-reads the value; a constant pins it until the worker restarts.
+- **Default to a field on a Single DocType** (`OAN Auth Settings`, `Grievance Settings`),
+  as Frappe does with `session_expiry` on System Settings. This covers business policy an
+  admin tunes and connections to third-party services, with credentials in an encrypted
+  `Password` field. A field gets validation, an audit trail and a place admins can find.
+- **Use `site_config.json` only when a field will not work**, because the value is
+  something only whoever runs the deployment (DevOps) can know or should set, as with
+  Frappe's `db_host` and `redis_cache`. At least one of these must hold:
+  - It is infrastructure the server must reach (`grievance_clamav_host`).
+  - It is this deployment's own key or secret (`jwt_private_keys`).
+  - It must differ per environment and not travel with a database restore (`jwt_issuer`).
+  - An app admin must not be able to change it from Desk (Frappe's `ignore_csrf`).
+- Do not add a site config key only to seed a DocType. The key goes stale after the first
+  seed, and a secret stays in plain text.
+- Validate on the DocType what site config cannot: link integrity, and refusing values
+  that would widen access (privileged roles, for example).
+- When moving a released site config key to a DocType, keep it working: a blank field
+  falls back to the key, then to the default, and the read must not depend on the DocType
+  existing yet, because requests can arrive before `bench migrate` runs.
 - Each setting has a named default (`DEFAULT_ACCESS_TOKEN_TTL = 15 * 60`) with a comment
   that explains the value.
 - List every key with an example in the module docstring.

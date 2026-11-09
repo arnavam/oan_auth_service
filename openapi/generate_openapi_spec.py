@@ -475,7 +475,7 @@ REQ["AdminCreateUserRequest"] = OBJ(
 			nullable=True, description="E.164, or national digits when country_code is provided"
 		),
 		"country_code": S(example="+251", nullable=True),
-		"roles": ARR(S(), nullable=True, description="Defaults to jwt_default_registration_role"),
+		"roles": ARR(S(), nullable=True, description="Defaults to the configured default registration role"),
 		"temporary_password": _TEMPORARY_PASSWORD,
 	},
 	required=["full_name"],

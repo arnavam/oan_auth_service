@@ -1,0 +1,121 @@
+{
+ "actions": [],
+ "creation": "2026-11-08 00:00:00.000000",
+ "description": "Login and registration policy. A blank field falls back to its site_config.json key, then to the built-in default.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "token_section",
+  "access_token_ttl",
+  "refresh_token_ttl",
+  "refresh_token_ttl_remember_me",
+  "password_reset_section",
+  "password_reset_otp_ttl",
+  "password_reset_otp_length",
+  "password_reset_otp_max_attempts",
+  "password_reset_otp_max_issued_per_day",
+  "registration_section",
+  "default_registration_role",
+  "self_registerable_roles"
+ ],
+ "fields": [
+  {
+   "fieldname": "token_section",
+   "fieldtype": "Section Break",
+   "label": "Token Lifetimes"
+  },
+  {
+   "description": "Seconds. Built-in default 900. A revoked role stays in a token for this long.",
+   "fieldname": "access_token_ttl",
+   "fieldtype": "Int",
+   "label": "Access Token Lifetime",
+   "non_negative": 1
+  },
+  {
+   "description": "Seconds. Built-in default 2592000.",
+   "fieldname": "refresh_token_ttl",
+   "fieldtype": "Int",
+   "label": "Refresh Token Lifetime",
+   "non_negative": 1
+  },
+  {
+   "description": "Seconds. Built-in default 7776000.",
+   "fieldname": "refresh_token_ttl_remember_me",
+   "fieldtype": "Int",
+   "label": "Refresh Token Lifetime with Remember Me",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "password_reset_section",
+   "fieldtype": "Section Break",
+   "label": "Password Reset Code"
+  },
+  {
+   "description": "Seconds. Built-in default 600.",
+   "fieldname": "password_reset_otp_ttl",
+   "fieldtype": "Int",
+   "label": "Code Lifetime",
+   "non_negative": 1
+  },
+  {
+   "description": "Digits. Built-in default 6.",
+   "fieldname": "password_reset_otp_length",
+   "fieldtype": "Int",
+   "label": "Code Length",
+   "non_negative": 1
+  },
+  {
+   "description": "Wrong guesses before the code is destroyed. Built-in default 5.",
+   "fieldname": "password_reset_otp_max_attempts",
+   "fieldtype": "Int",
+   "label": "Maximum Attempts",
+   "non_negative": 1
+  },
+  {
+   "description": "Codes one account may be sent in 24 hours. Built-in default 5.",
+   "fieldname": "password_reset_otp_max_issued_per_day",
+   "fieldtype": "Int",
+   "label": "Maximum Codes per Day",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "registration_section",
+   "fieldtype": "Section Break",
+   "label": "Registration"
+  },
+  {
+   "description": "Given when a registration names no role.",
+   "fieldname": "default_registration_role",
+   "fieldtype": "Link",
+   "label": "Default Registration Role",
+   "options": "Role"
+  },
+  {
+   "description": "Roles a guest may request when registering.",
+   "fieldname": "self_registerable_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Self Registerable Roles",
+   "options": "OAN Self Registerable Role"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-11-08 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "OAN Auth",
+ "name": "OAN Auth Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

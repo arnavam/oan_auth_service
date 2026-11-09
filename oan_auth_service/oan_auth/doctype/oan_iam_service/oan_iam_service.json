@@ -20,6 +20,7 @@
   "issuer",
   "client_id",
   "cookie_prefix",
+  "post_logout_redirect_uri",
   "userinfo_section",
   "userinfo_url",
   "jwks_url",
@@ -112,6 +113,12 @@
    "fieldname": "cookie_prefix",
    "fieldtype": "Data",
    "label": "Cookie Prefix"
+  },
+  {
+   "description": "Optional. Where the browser lands after the identity provider logs it out. Must also be a valid post logout redirect URI of the provider's client. Empty: the provider is logged out server-to-server and the browser does not visit it.",
+   "fieldname": "post_logout_redirect_uri",
+   "fieldtype": "Data",
+   "label": "Post Logout Redirect URI"
   },
   {
    "fieldname": "userinfo_section",

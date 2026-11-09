@@ -15,7 +15,15 @@ COOKIE_PREFIX_PATTERN = re.compile(r"^[A-Za-z0-9_.-]*$")
 
 # Fields that configure an IAM login. The `local` row is this app's own login
 # and must leave all of them empty.
-IAM_FIELDS = ("base_url", "provider_id", "issuer", "client_id", "application", "cookie_prefix")
+IAM_FIELDS = (
+	"base_url",
+	"provider_id",
+	"issuer",
+	"client_id",
+	"application",
+	"cookie_prefix",
+	"post_logout_redirect_uri",
+)
 
 
 class OANIAMService(Document):
@@ -85,6 +93,14 @@ class OANIAMService(Document):
 						"{0} must use https (plain http is allowed only for loopback hosts: localhost, *.localhost, 127.0.0.0/8, ::1)."
 					).format(label)
 				)
+		self.post_logout_redirect_uri = (self.post_logout_redirect_uri or "").strip()
+		if self.post_logout_redirect_uri and (
+			iam_tokens.origin_of(self.post_logout_redirect_uri) is None
+			or not iam_tokens.is_secure_url(self.post_logout_redirect_uri)
+		):
+			frappe.throw(
+				_("Post Logout Redirect URI must be an absolute https URL (http only for loopback hosts).")
+			)
 		if not COOKIE_PREFIX_PATTERN.match(self.cookie_prefix):
 			frappe.throw(_("Cookie Prefix may contain only letters, digits, '_', '.' and '-'."))
 		self._validate_icon()

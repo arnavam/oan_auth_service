@@ -86,15 +86,7 @@ There is no `DELETE` on a user: hard deletion would orphan records consuming app
 
 ### HTTPS Transport Security
 
-Transport security can be strictly enforced across all REST endpoints by setting in `site_config.json`:
-
-```json
-{
-  "jwt_enforce_https": true
-}
-```
-
-When enabled, any plain HTTP request is rejected with `403 Forbidden` (`HTTPS_REQUIRED`). All HTTPS responses automatically include `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, and `X-Request-Id` headers.
+HTTPS is enforced at the API gateway. This app does not check the transport of a request.
 
 ### Defining REST Routes in Consuming Apps
 

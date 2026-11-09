@@ -20,6 +20,7 @@ are the sole input guard.
 
 import re
 import secrets
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import frappe
 from frappe import N_, _
@@ -543,8 +544,8 @@ def register_user(
 	phone number, so the caller must sign in (and, once verification exists,
 	verify) before holding a session.
 
-	- Guest callers can self-assign roles listed in `jwt_self_registerable_roles` in site_config.json.
-	- If no role is requested, `jwt_default_registration_role` is assigned (if configured).
+	- Guest callers can self-assign the self-registerable roles (`settings.self_registerable_roles`).
+	- If no role is requested, the default registration role is assigned (if configured).
 	- Authenticated administrators (e.g. System Manager) can assign any valid role.
 	- Broadcasts `on_user_registered` hooks for consuming apps to initialize and link domain DocTypes.
 	"""
@@ -562,7 +563,7 @@ def register_user(
 	)
 
 	if not requested_roles:
-		default_role = frappe.conf.get("jwt_default_registration_role")
+		default_role = settings.default_registration_role()
 		if default_role:
 			requested_roles = [default_role]
 	elif not is_admin_caller:
@@ -1436,6 +1437,10 @@ def _iam_logout(service):
 	headers, relayed here, and a redirect to the provider's
 	`end_session_endpoint`, called here. If that call fails, its URL is returned
 	for the browser to follow instead.
+
+	With the option's Post Logout Redirect URI set, the browser always follows the
+	provider's logout URL, which then sends it to that URI: only the browser can
+	clear the provider's own cookies.
 	"""
 	try:
 		set_cookies, logout_url = iam_tokens.logout(service, _iam_session_cookies(service))
@@ -1445,7 +1450,16 @@ def _iam_logout(service):
 	_relay_set_cookies(set_cookies)
 
 	data = {"logged_out": True, "provider_logout": False}
-	if logout_url:
+	if logout_url and service.get("post_logout_redirect_uri"):
+		parsed = urlparse(logout_url)
+		query = [
+			(k, v)
+			for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+			if k != "post_logout_redirect_uri"
+		]
+		query.append(("post_logout_redirect_uri", service.post_logout_redirect_uri))
+		data["logout_url"] = urlunparse(parsed._replace(query=urlencode(query)))
+	elif logout_url:
 		if iam_tokens.end_provider_session(logout_url, service):
 			data["provider_logout"] = True
 		else:

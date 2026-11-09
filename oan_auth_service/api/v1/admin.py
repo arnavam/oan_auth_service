@@ -438,7 +438,7 @@ def create_user(
 		frappe.throw(_("Provide an email or a phone number."), frappe.ValidationError)
 
 	requested_roles = parse_multi_value(roles)
-	if not requested_roles and (default_role := frappe.conf.get("jwt_default_registration_role")):
+	if not requested_roles and (default_role := settings.default_registration_role()):
 		requested_roles = [default_role]
 	if not requested_roles:
 		frappe.throw(_("Provide at least one role of this service."), frappe.ValidationError)

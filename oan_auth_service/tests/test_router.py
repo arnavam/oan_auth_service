@@ -84,15 +84,6 @@ class TestWerkzeugRESTRouter(unittest.TestCase):
 		self.assertEqual(matching[0]["methods"], ("POST",))
 
 
-class TestHTTPSValidationAndEnforcement(unittest.TestCase):
-	def test_enforce_https_setting(self):
-		with override_conf(jwt_enforce_https=True):
-			self.assertTrue(settings.enforce_https())
-
-		with override_conf(jwt_enforce_https=False, enforce_https=False):
-			self.assertFalse(settings.enforce_https())
-
-
 class TestRESTAuthEndpoints(unittest.TestCase):
 	def setUp(self):
 		ensure_routes_registered()

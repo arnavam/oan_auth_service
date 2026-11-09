@@ -1,20 +1,28 @@
-"""Tunable lifetimes and identifiers, resolved from site_config.json.
+"""Tunable lifetimes and identifiers, resolved from `OAN Auth Settings` and site_config.json.
 
-Exposed as functions rather than module constants on purpose: site_config is
+Exposed as functions rather than module constants on purpose: settings are
 re-read at runtime, and a constant bound at import time would pin whatever the
 value happened to be when the worker booted. A TTL you cannot change without a
 process restart is a TTL nobody changes during an incident.
 
-Configuration (site_config.json), all optional:
+Login and registration policy lives on the `OAN Auth Settings` DocType. A field
+left blank falls back to its site_config.json key, then to the default below, so
+a site configured before the DocType existed keeps its values:
 
     "jwt_access_token_ttl": 900,
     "jwt_refresh_token_ttl": 2592000,
     "jwt_refresh_token_ttl_remember_me": 7776000,
-    "jwt_issuer": "oan-auth",
     "password_reset_otp_ttl": 600,
     "password_reset_otp_length": 6,
     "password_reset_otp_max_attempts": 5,
+    "password_reset_otp_max_issued_per_day": 5,
+    "jwt_default_registration_role": "Customer",
     "jwt_self_registerable_roles": []
+
+Deployment values are read from site_config.json only, all optional:
+
+    "jwt_issuer": "oan-auth",
+    "service_prefix": "A2C"
 
 Login delegated to the OpenG2P IAM service is not configured here: each login
 option is a row of the `OAN IAM Service` DocType, read through `iam_services()`
@@ -22,6 +30,22 @@ below. See api/iam_tokens.py and api/iam_users.py.
 """
 
 import frappe
+from frappe.utils import cint
+
+AUTH_SETTINGS_DOCTYPE = "OAN Auth Settings"
+SELF_REGISTERABLE_ROLE_DOCTYPE = "OAN Self Registerable Role"
+
+
+def _stored_setting(field: str) -> str | None:
+	# Reads the stored rows and not the DocType's meta, so a request served between a
+	# code deploy and its `bench migrate` still works, on the site_config value.
+	return frappe.db.get_singles_dict(AUTH_SETTINGS_DOCTYPE).get(field)
+
+
+def _int_setting(field: str, conf_key: str, default: int) -> int:
+	"""The `OAN Auth Settings` field, else the site_config key, else `default`. Zero counts as blank."""
+	return cint(_stored_setting(field)) or int(frappe.conf.get(conf_key) or default)
+
 
 # Short by design. The access token carries a roles claim, and a claim is a
 # snapshot: it stops reflecting reality the moment roles change. The TTL is the
@@ -36,16 +60,18 @@ DEFAULT_REFRESH_TOKEN_TTL_REMEMBER_ME = 90 * 24 * 60 * 60
 
 def access_token_ttl() -> int:
 	"""Lifetime in seconds of a newly issued access token."""
-	return int(frappe.conf.get("jwt_access_token_ttl") or DEFAULT_ACCESS_TOKEN_TTL)
+	return _int_setting("access_token_ttl", "jwt_access_token_ttl", DEFAULT_ACCESS_TOKEN_TTL)
 
 
 def refresh_token_ttl(remember_me: bool = False) -> int:
 	"""Lifetime in seconds of a newly issued refresh token."""
 	if remember_me:
-		return int(
-			frappe.conf.get("jwt_refresh_token_ttl_remember_me") or DEFAULT_REFRESH_TOKEN_TTL_REMEMBER_ME
+		return _int_setting(
+			"refresh_token_ttl_remember_me",
+			"jwt_refresh_token_ttl_remember_me",
+			DEFAULT_REFRESH_TOKEN_TTL_REMEMBER_ME,
 		)
-	return int(frappe.conf.get("jwt_refresh_token_ttl") or DEFAULT_REFRESH_TOKEN_TTL)
+	return _int_setting("refresh_token_ttl", "jwt_refresh_token_ttl", DEFAULT_REFRESH_TOKEN_TTL)
 
 
 # A phone-only account cannot be sent a reset link, so it is sent a numeric code
@@ -70,24 +96,31 @@ DEFAULT_PASSWORD_RESET_OTP_MAX_ISSUED_PER_DAY = 5
 
 def password_reset_otp_ttl() -> int:
 	"""Seconds a password-reset OTP stays valid."""
-	return int(frappe.conf.get("password_reset_otp_ttl") or DEFAULT_PASSWORD_RESET_OTP_TTL)
+	return _int_setting("password_reset_otp_ttl", "password_reset_otp_ttl", DEFAULT_PASSWORD_RESET_OTP_TTL)
 
 
 def password_reset_otp_length() -> int:
 	"""Number of digits in a password-reset OTP."""
-	return int(frappe.conf.get("password_reset_otp_length") or DEFAULT_PASSWORD_RESET_OTP_LENGTH)
+	return _int_setting(
+		"password_reset_otp_length", "password_reset_otp_length", DEFAULT_PASSWORD_RESET_OTP_LENGTH
+	)
 
 
 def password_reset_otp_max_attempts() -> int:
 	"""Wrong guesses allowed against one OTP before it is destroyed."""
-	return int(frappe.conf.get("password_reset_otp_max_attempts") or DEFAULT_PASSWORD_RESET_OTP_MAX_ATTEMPTS)
+	return _int_setting(
+		"password_reset_otp_max_attempts",
+		"password_reset_otp_max_attempts",
+		DEFAULT_PASSWORD_RESET_OTP_MAX_ATTEMPTS,
+	)
 
 
 def password_reset_otp_max_issued_per_day() -> int:
 	"""Password-reset OTPs one account may be sent in 24 hours."""
-	return int(
-		frappe.conf.get("password_reset_otp_max_issued_per_day")
-		or DEFAULT_PASSWORD_RESET_OTP_MAX_ISSUED_PER_DAY
+	return _int_setting(
+		"password_reset_otp_max_issued_per_day",
+		"password_reset_otp_max_issued_per_day",
+		DEFAULT_PASSWORD_RESET_OTP_MAX_ISSUED_PER_DAY,
 	)
 
 
@@ -101,14 +134,23 @@ def issuer() -> str:
 	return frappe.conf.get("jwt_issuer") or frappe.local.site
 
 
-def enforce_https() -> bool:
-	"""Whether HTTPS transport is strictly required for auth API calls."""
-	return bool(frappe.conf.get("jwt_enforce_https") or frappe.conf.get("enforce_https"))
-
-
 def self_registerable_roles() -> list[str]:
 	"""List of roles permitted for self-registration by guest callers."""
-	return list(frappe.conf.get("jwt_self_registerable_roles") or [])
+	roles = []
+	# Checked first, not caught: on Postgres a failed query would abort the transaction.
+	if frappe.db.table_exists(SELF_REGISTERABLE_ROLE_DOCTYPE):
+		roles = frappe.get_all(
+			SELF_REGISTERABLE_ROLE_DOCTYPE,
+			filters={"parenttype": AUTH_SETTINGS_DOCTYPE, "parent": AUTH_SETTINGS_DOCTYPE},
+			pluck="role",
+			order_by="idx asc",
+		)
+	return roles or list(frappe.conf.get("jwt_self_registerable_roles") or [])
+
+
+def default_registration_role() -> str | None:
+	"""The role a registration that names none is given, if one is configured."""
+	return _stored_setting("default_registration_role") or frappe.conf.get("jwt_default_registration_role")
 
 
 def name_in_scope(name: str, prefixes: tuple[str, ...]) -> bool:
@@ -146,6 +188,7 @@ _IAM_SERVICE_FIELDS = (
 	"client_id",
 	"application",
 	"cookie_prefix",
+	"post_logout_redirect_uri",
 	"userinfo_url",
 	"jwks_url",
 	"request_timeout",
@@ -193,6 +236,7 @@ def _load_iam_services() -> list[dict]:
 			**{f: r.get(f) for f in _IAM_SERVICE_FIELDS},
 			"base_url": (r.base_url or "").rstrip("/"),
 			"cookie_prefix": r.cookie_prefix or "",
+			"post_logout_redirect_uri": r.post_logout_redirect_uri or "",
 			"userinfo_url": r.userinfo_url or "",
 			"jwks_url": r.jwks_url or "",
 			"default_roles": roles.get(r.key, []),
